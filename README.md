@@ -40,6 +40,13 @@ Troubleshooting sections address common issues such as driver loading failures, 
   - [Creating a Convenient Alias (Recommended)](#creating-a-convenient-alias-recommended)
   - [Alternative: Creating a Helper Script](#alternative-creating-a-helper-script)
   - [Verifying Which GPU is Being Used](#verifying-which-gpu-is-being-used)
+- [Enabling Wayland Support (Optional)](#enabling-wayland-support-optional)
+  - [Why Enable Wayland?](#why-enable-wayland)
+  - [Requirements for Wayland with NVIDIA](#requirements-for-wayland-with-nvidia)
+  - [Enabling Wayland: Step-by-Step](#enabling-wayland-step-by-step)
+  - [Verifying You're Using Wayland](#verifying-youre-using-wayland)
+  - [Switching Back to X11](#switching-back-to-x11)
+  - [Troubleshooting Wayland](#troubleshooting-wayland)
 - [BIOS GPU Mode Settings](#bios-gpu-mode-settings)
   - [Option 1: Hybrid/Switchable Graphics (Current Setup)](#option-1-hybridswitchable-graphics-current-setup)
   - [Option 2: Dedicated/Discrete Only](#option-2-dedicateddiscrete-only)
@@ -395,6 +402,132 @@ Check with NVIDIA:
 ```bash
 __NV_PRIME_RENDER_OFFLOAD=1 __GLX_VENDOR_LIBRARY_NAME=nvidia glxinfo | grep "OpenGL renderer"
 ```
+
+---
+
+## Enabling Wayland Support (Optional)
+
+By default, Debian disables Wayland when NVIDIA drivers are detected. However, enabling Wayland provides significant benefits, especially for fractional scaling support.
+
+### Why Enable Wayland?
+
+**Benefits:**
+- ✅ Native fractional scaling in GNOME Settings (125%, 150%, 175%, etc.)
+- ✅ Sharper text and UI rendering
+- ✅ Better multi-monitor support with per-monitor scaling
+- ✅ Modern display protocol with better security
+- ✅ More efficient rendering
+
+**When to Use:**
+- You need fractional scaling (not just 100% or 200%)
+- Using dedicated NVIDIA mode where X11 fractional scaling is limited
+- Want better visual quality on high-DPI displays
+
+### Requirements for Wayland with NVIDIA
+
+GDM (GNOME Display Manager) requires these components to enable Wayland with NVIDIA:
+1. NVIDIA power management kernel parameter
+2. NVIDIA suspend/resume systemd services enabled
+3. Proper power management support for sleep/wake cycles
+
+### Enabling Wayland: Step-by-Step
+
+#### Step 1: Add NVIDIA Power Management Parameter
+
+Create the kernel module configuration:
+```bash
+sudo bash -c "echo 'options nvidia NVreg_PreserveVideoMemoryAllocations=1' > /etc/modprobe.d/nvidia-power-management.conf"
+```
+
+Update initramfs:
+```bash
+sudo update-initramfs -u
+```
+
+#### Step 2: Verify NVIDIA Systemd Services Exist
+
+Check if services are installed:
+```bash
+ls -la /usr/lib/systemd/system/nvidia-*.service
+```
+
+You should see:
+- `nvidia-suspend.service`
+- `nvidia-hibernate.service`
+- `nvidia-resume.service`
+
+#### Step 3: Enable Power Management Services
+
+Enable the required services:
+```bash
+sudo systemctl enable nvidia-suspend.service
+sudo systemctl enable nvidia-hibernate.service
+sudo systemctl enable nvidia-resume.service
+```
+
+Verify they're enabled:
+```bash
+systemctl is-enabled nvidia-suspend nvidia-hibernate nvidia-resume
+```
+
+All three should show: `enabled`
+
+#### Step 4: Reboot
+
+Reboot your system:
+```bash
+sudo reboot
+```
+
+#### Step 5: Select Wayland Session
+
+After reboot:
+1. At the GDM login screen, look for the **gear icon** (⚙️) at the bottom right
+2. Click it and select **"GNOME on Wayland"** (or just "GNOME" if that's the Wayland session)
+3. Log in
+
+#### Step 6: Enable Fractional Scaling
+
+Once logged into Wayland:
+1. Open **Settings** → **Displays**
+2. You'll now see fractional scaling options (125%, 150%, 175%, 200%)
+3. Select your preferred scaling (e.g., 150%)
+4. Click **Apply**
+
+The scaling will persist across reboots!
+
+### Verifying You're Using Wayland
+
+Check your current session type:
+```bash
+echo $XDG_SESSION_TYPE
+```
+
+Should output: `wayland`
+
+### Switching Back to X11
+
+If you need to switch back to X11:
+1. Logout
+2. At the login screen, click the gear icon
+3. Select **"GNOME on Xorg"** or **"GNOME Classic"**
+4. Log in
+
+### Troubleshooting Wayland
+
+**Wayland option not appearing:**
+- Verify all three systemd services are enabled: `systemctl is-enabled nvidia-suspend nvidia-hibernate nvidia-resume`
+- Check for udev rule blocking: `cat /usr/lib/udev/rules.d/61-gdm.rules | grep -A5 "gdm_disable_wayland"`
+- Check GDM logs: `sudo journalctl -u gdm -b`
+
+**Screen flickering or artifacts:**
+- May be compatibility issues with specific apps
+- Try updating to a newer NVIDIA driver version
+- Check compositor settings in GNOME Tweaks
+
+**Performance issues:**
+- Some apps may perform better on X11
+- Gaming performance is typically similar between Wayland and X11 with modern NVIDIA drivers
 
 ---
 
