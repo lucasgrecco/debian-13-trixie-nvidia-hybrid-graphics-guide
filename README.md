@@ -1,4 +1,4 @@
-# NVIDIA Open Kernel Modules Installation Guide - Debian 13 Trixie
+# NVIDIA Open Kernel Modules Installation Guide - Debian 13 Trixie (Lenovo Legion 2025)
 **Complete Step-by-Step Documentation**
 
 ## Intro
